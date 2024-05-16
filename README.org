@@ -1,0 +1,71 @@
+:PROPERTIES:
+:ID:       0bd4a730-4e05-4516-885b-63ebe3d7b700
+:END:
+#+title: ReadMe
+
+
+A library to use [[https://en.wikipedia.org/wiki/Secure_multi-party_computation][secure multi-party computation]] to compute shared preferences between two parties.
+
+* Privacy Notion
+
+A person's preference score is an i8, with 0 being perfect neutrality, negative values being some amount of dislike, and positive values being some amount of like. There are two compatibility outputs we can compute. The order (who likes it more), and the proximity (whether the scores are within a certain threshold of each other).
+
+** Order Privacy
+
+The value of order privacy is difficult to describe without some illustrations. For example, let's say A has a slight preference (20), while B has a significant preference (100).
+
+A learns that B's preference is greater than A's. This can be represented with a graph:
+
+~<-127................0....************+128>~
+
+B learns that A's preference is lesser:
+
+~<-127****************0*************...+128>~
+
+The knowledge gained is somewhat asymmetric - the individual with strong preferences is at risk of leaking more information. However, since the purpose of this protocol is to compute shared preference, this may be acceptable.
+
+EQUALITY NOTE: When the scores equal, this circuit will return OrderResult::Equal. Equality does not fall under the privacy policy.
+
+** Proximity Privacy
+
+Proximity privacy is mutually configurable by the parties - each sets a u8 threshold, and the lowest one is used to compute proximity. As above, at the extremes the information learned may be asymmetric.
+
+For example, let's say A has a preference of -40 and a threshold of 10, while B has a preference of -44 and a threshold of 5.
+
+A learns that:
+
+~<-127........****....0................+128>~
+
+While B learns that:
+
+~<-127.........**.....0................+128>~
+
+This seems intuitive. The unintuitive case is on a proximity failure - this could come about because the other party's preference was outside your threshold, or outside their own threshold, or because they disallowed proximity calculation or expressed no preference. This was done deliberately to reduce information leakage.
+
+EQUALITY NOTE: When the scores are equal, this circuit will return ProximityResult::Close. This may be confusing if either/both parties disallowed proximity calculation, but it will always accompany OrderResult::Equal, so the results will be fairly self explanatory.
+
+
+** Privacy Privacy
+
+The Unknown values themselves can leak some information - a user who allows a certain computation but recieves an Unknown can deduce that one of a few computations may have happened. The table below describes all the information that can be leaked through this channel.
+
+|---------+----------------------+-----------------------+-----------------------------+---------------------------+----------------------------------|
+|         |                      |                       | Party A                     |                           |                                  |
+|---------+----------------------+-----------------------+-----------------------------+---------------------------+----------------------------------|
+|         |                      | No Preference (NP)    | Allow Order  (AO)           | Allow Proximity (AP)      | Allow Both (AB)                  |
+|---------+----------------------+-----------------------+-----------------------------+---------------------------+----------------------------------|
+|         | No Preference (NP)   | Nothing               | A learns that B             | A learns that B           | A learns that B NP               |
+|         |                      |                       | ~AO or NP                   | ~AP, NP, or not close     |                                  |
+|---------+----------------------+-----------------------+-----------------------------+---------------------------+----------------------------------|
+| Party B | Allow Order (AO)     | B learns that A       | Both learn relative         | A learns that B ~AP, NP,  | A learns that B ~AP or not close |
+|         |                      | ~AO or NP             | order                       | or not close              |                                  |
+|         |                      |                       |                             | B learns that A ~AO or NP | Both learn relative order        |
+|---------+----------------------+-----------------------+-----------------------------+---------------------------+----------------------------------|
+|         | Allow Proximity (AP) | B learns that A       | A learns that B ~AO or NP   | Both learn proximity      | A learns that B ~AO              |
+|         |                      | ~AP, NP, or not close | B learns that A ~AP, NP, or |                           | Both learn proximity             |
+|         |                      |                       | not close                   |                           |                                  |
+|---------+----------------------+-----------------------+-----------------------------+---------------------------+----------------------------------|
+|         | Allow Both (AB)      | B learns that A NP    | B learns that A ~AP         | B learns that A ~AO       | Both learn proximity and order   |
+|         |                      |                       | Both learn relative order   | Both learn proximity      |                                  |
+|---------+----------------------+-----------------------+-----------------------------+---------------------------+----------------------------------|
+

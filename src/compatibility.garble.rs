@@ -62,7 +62,7 @@ pub fn main(a: Ranking, b: Ranking) -> Result {
                 (a_score, b_score, OrderResult::Equal)
             };
 
-            // Apply order privacy policies
+            // Apply order privacy policies and equality case
             let order = match (order, a_policy.order, b_policy.order) {
                 (_, OrderPolicy::Allow, OrderPolicy::Allow) => order,
                 (OrderResult::Equal, _, _) => order,
@@ -82,6 +82,12 @@ pub fn main(a: Ranking, b: Ranking) -> Result {
                         ProximityResult::Unknown
                     }
                 }
+            };
+
+            // Apply equality case
+            let proximity = match order {
+                OrderResult::Equal => ProximityResult::Close,
+                _ => proximity,
             };
 
             Result { order, proximity }
